@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECG Heartbeat Classification | 1D-CNN</title>
+  <meta name="description" content="דף נחיתה לפרויקט ECG-Heartbeat-Classification: סיווג פעימות ECG עם 1D-CNN, pre-training, baseline ו-fine-tuning." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f2ec;
+      --bg-soft: #fffaf2;
+      --ink: #141412;
+      --ink-soft: #3f3f39;
+      --brand: #c43a22;
+      --brand-deep: #8e2514;
+      --accent: #0e8a7a;
+      --card: rgba(255, 255, 255, 0.78);
+      --stroke: rgba(20, 20, 18, 0.15);
+      --shadow: 0 12px 30px rgba(196, 58, 34, 0.14);
+      --radius: 18px;
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at 20% 0%, #ffe8ce 0%, transparent 45%),
+        radial-gradient(circle at 80% 20%, #f8d8d2 0%, transparent 40%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Heebo", sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(20, 20, 18, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 20, 18, 0.02) 1px, transparent 1px);
+      background-size: 30px 30px;
+      z-index: -1;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .container {
+      width: min(100% - 2rem, var(--max));
+      margin-inline: auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      background: rgba(245, 242, 236, 0.75);
+      border-bottom: 1px solid var(--stroke);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 68px;
+    }
+
+    .brand {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+    }
+
+    .links {
+      display: flex;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .links a {
+      font-size: 0.95rem;
+      color: var(--ink-soft);
+      transition: color 0.2s ease;
+    }
+
+    .links a:hover {
+      color: var(--brand-deep);
+    }
+
+    .hero {
+      padding: clamp(3rem, 8vw, 6rem) 0 3rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.4rem;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 1px solid var(--stroke);
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(1.2rem, 2.2vw, 2.2rem);
+    }
+
+    .kicker {
+      color: var(--brand-deep);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      margin: 0 0 0.7rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      font-size: clamp(1.9rem, 5vw, 3.6rem);
+      font-family: "Space Grotesk", "Heebo", sans-serif;
+      margin-bottom: 0.8rem;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: clamp(1rem, 2vw, 1.15rem);
+      max-width: 62ch;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 1.4rem;
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 0.7rem 1rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+      box-shadow: 0 8px 20px rgba(142, 37, 20, 0.3);
+    }
+
+    .btn-secondary {
+      color: var(--brand-deep);
+      border-color: rgba(142, 37, 20, 0.3);
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+      align-content: start;
+    }
+
+    .stat {
+      background: var(--bg-soft);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 0.95rem;
+      min-height: 108px;
+    }
+
+    .stat strong {
+      display: block;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.35rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .section {
+      padding: clamp(2.2rem, 4vw, 4rem) 0;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--ink-soft);
+      max-width: 58ch;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+
+    .card {
+      border: 1px solid var(--stroke);
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.85rem;
+    }
+
+    .step {
+      background: #fff;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 0.9rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--brand));
+      opacity: 0.85;
+    }
+
+    .step .num {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.82rem;
+      color: var(--brand-deep);
+      margin-bottom: 0.25rem;
+    }
+
+    .code-wrap {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #12120f;
+      color: #efe9dc;
+    }
+
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.7rem 0.9rem;
+      background: #1d1d19;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+    }
+
+    pre {
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      font-size: 0.88rem;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .cta {
+      background: linear-gradient(135deg, #1a1b17, #2e302a);
+      color: #fff;
+      border-radius: 20px;
+      padding: clamp(1.4rem, 3.5vw, 2.4rem);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 16px 34px rgba(20, 20, 18, 0.26);
+    }
+
+    .cta p {
+      margin: 0.4rem 0 1rem;
+      color: #d6d8d2;
+    }
+
+    .fade {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+
+    .fade.show {
+      animation: rise 0.55s ease forwards;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .cards,
+      .flow {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .section-head {
+        align-items: start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav {
+        flex-direction: column;
+        align-items: start;
+        padding: 0.6rem 0;
+      }
+
+      .links {
+        justify-content: start;
+      }
+
+      .hero-grid,
+      .cards,
+      .stats,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding-top: 2.2rem;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <div class="brand">
+        ECG Heartbeat Classification
+        <span class="brand-badge">1D-CNN</span>
+      </div>
+      <nav class="links" aria-label="ניווט">
+        <a href="#overview">סקירה</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#quickstart">Quick Start</a>
+        <a href="#results">מה מקבלים</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero container">
+      <div class="hero-grid">
+        <article class="panel fade">
+          <p class="kicker">Machine Learning Project</p>
+          <h1>סיווג פעימות ECG פתולוגיות באמצעות 1D-CNN ולמידת העברה</h1>
+          <p class="lead">
+            הפרויקט מאמן מודל כללי על MIT-BIH, ממשיך ל־fine-tuning לפי מטופל,
+            ומשווה מול baseline שמאומן מאפס לכל מטופל. המטרה: להעריך האם ידע מקדים
+            משפר דיוק בזיהוי פעימות חריגות.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#quickstart">הרצה מהירה</a>
+            <a class="btn btn-secondary" href="./README_LOCAL_HE.md">תיעוד מקומי</a>
+          </div>
+        </article>
+
+        <aside class="stats fade" aria-label="נתוני פרויקט">
+          <div class="stat">
+            <strong>MIT-BIH</strong>
+            מאגר קלאסי לאנליזת אריתמיה לפי מטופלים.
+          </div>
+          <div class="stat">
+            <strong>PyTorch</strong>
+            אימון 1D-CNN ו־fine-tuning לכל מטופל.
+          </div>
+          <div class="stat">
+            <strong>3 מצבים</strong>
+            <code>pre-training</code>, <code>individuals</code>, <code>fine_tuning</code>
+          </div>
+          <div class="stat">
+            <strong>Smoke Test</strong>
+            בדיקת תקינות מהירה עם epoch אחד על מטופל 100.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section container" id="overview">
+      <div class="section-head fade">
+        <h2>מה יש בפנים</h2>
+        <p>
+          ארכיטקטורה תפעולית שמפרידה בין pre-training כללי, baseline פר־מטופל,
+          ו־fine-tuning. התהליך מאפשר השוואה שקופה בין אימון מאפס לבין transfer learning.
+        </p>
+      </div>
+      <div class="cards">
+        <article class="card fade">
+          <h3>Pre-training</h3>
+          <p>אימון מודל גנרי על סט רחב של מטופלים כדי ללמוד ייצוג ECG בסיסי.</p>
+        </article>
+        <article class="card fade">
+          <h3>Baseline Individuals</h3>
+          <p>אימון עצמאי לכל מטופל מאפס, לצורך קו בסיס הוגן להשוואה.</p>
+        </article>
+        <article class="card fade">
+          <h3>Fine-tuning</h3>
+          <p>טעינת checkpoint מאומן והתאמה ממוקדת למטופל יעד.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section container" id="pipeline">
+      <div class="section-head fade">
+        <h2>Pipeline בפשטות</h2>
+        <p>הזרימה מסוף־לסוף מהרצת נתונים ועד checkpoints לכל מטופל.</p>
+      </div>
+      <div class="flow">
+        <article class="step fade">
+          <div class="num">שלב 1</div>
+          <h3>Dataset</h3>
+          <p>קריאת קבצי MIT-BIH מתוך <code>dataset/mitbih_database</code>.</p>
+        </article>
+        <article class="step fade">
+          <div class="num">שלב 2</div>
+          <h3>Windowing + Split</h3>
+          <p>עיבוד פעימות, חלוקה ל־train/val/test ושקלול דגימות לפי הצורך.</p>
+        </article>
+        <article class="step fade">
+          <div class="num">שלב 3</div>
+          <h3>Training Mode</h3>
+          <p>בחירה ב־<code>--state</code> להפעלת pre-training / baseline / fine-tuning.</p>
+        </article>
+        <article class="step fade">
+          <div class="num">שלב 4</div>
+          <h3>Outputs</h3>
+          <p>שמירת checkpoints ולוגים תחת נתיב פלט לבחירתך.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section container" id="quickstart">
+      <div class="section-head fade">
+        <h2>Quick Start</h2>
+        <p>פקודות קצרות להתחלה מהירה בפיתוח מקומי ובדיקת תקינות.</p>
+      </div>
+      <div class="code-wrap fade">
+        <div class="code-head">
+          <span>Terminal</span>
+          <span>setup + smoke</span>
+        </div>
+        <pre><code>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip wheel
+python -m pip install -r requirements-local.txt
+python run_smoke_test.py</code></pre>
+      </div>
+      <div class="cards" style="margin-top: 0.9rem;">
+        <article class="card fade">
+          <h3>Pre-training</h3>
+          <p><code>python src/main.py --state pre-training --output_path ./output/</code></p>
+        </article>
+        <article class="card fade">
+          <h3>Baseline למטופל</h3>
+          <p><code>python src/main.py --state individuals --selected_patients_fine_tuning 100 --output_path ./output/</code></p>
+        </article>
+        <article class="card fade">
+          <h3>Fine-tuning</h3>
+          <p><code>python src/main.py --state fine_tuning --pretrain_path ./output/save_16.pth --selected_patients_fine_tuning 100 --output_path ./output/</code></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section container" id="results">
+      <article class="cta fade">
+        <h2>למי זה מתאים?</h2>
+        <p>
+          לקורסים ב־ML, לניסויי transfer learning ב־ECG, ולצוותים שרוצים בסיס נקי
+          להשוואות בין אימון מאפס להתאמה פר־מטופל.
+        </p>
+        <a class="btn btn-primary" href="./README.md">לקריאת התיעוד המלא</a>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const faders = document.querySelectorAll('.fade');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, idx) => {
+        if (entry.isIntersecting) {
+          const delay = Math.min(idx * 70, 280);
+          entry.target.style.animationDelay = `${delay}ms`;
+          entry.target.classList.add('show');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.18 });
+
+    faders.forEach((el) => observer.observe(el));
+  </script>
+</body>
+</html>
