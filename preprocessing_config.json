@@ -1,0 +1,5 @@
+{
+  "voltage_scaling": "per_window_min_max",
+  "formula": "(x - window_min) / (window_max - window_min)",
+  "constant_window_value": 0.0
+}

@@ -15,13 +15,15 @@ from flask import Flask, render_template, request
 APP_ROOT = Path(__file__).resolve().parent
 MODEL_PATH = APP_ROOT / "ecg_1d_cnn.keras"
 FEATURE_COLUMNS_PATH = APP_ROOT / "feature_columns.json"
+PREPROCESSING_CONFIG_PATH = APP_ROOT / "preprocessing_config.json"
 DATASET_CANDIDATES = (
-    APP_ROOT / "ECG_window_df.csv",
     APP_ROOT / "ECG_window_sample.csv",
+    APP_ROOT / "ECG_window_df.csv",
     APP_ROOT / "Desktop" / "ECG_window_df.csv",
     Path.home() / "Desktop" / "ECG_window_df.csv",
 )
 METADATA_COLUMNS = {"Window", "Patient", "Results", "Annotation"}
+TEST_PATIENTS = {"233", "234"}
 THRESHOLD = 0.5
 MAX_SAMPLE_OPTIONS = 100
 
@@ -47,7 +49,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 def get_model():
     if not MODEL_PATH.exists():
         return None
-    from keras.models import load_model
+    from tensorflow.keras.models import load_model
 
     return load_model(MODEL_PATH)
 
@@ -78,7 +80,32 @@ def get_sample_preview() -> Optional[pd.DataFrame]:
     dataset_path = find_dataset_path()
     if dataset_path is None:
         return None
-    return clean_dataframe(pd.read_csv(dataset_path, nrows=MAX_SAMPLE_OPTIONS))
+
+    header = pd.read_csv(dataset_path, nrows=0)
+    preview_columns = [col for col in ("Window", "Patient", "Results") if col in header.columns]
+    if not preview_columns:
+        return clean_dataframe(pd.read_csv(dataset_path, nrows=MAX_SAMPLE_OPTIONS))
+
+    preview = clean_dataframe(pd.read_csv(dataset_path, usecols=preview_columns))
+    if "Results" not in preview.columns:
+        return preview.head(MAX_SAMPLE_OPTIONS)
+
+    if "Patient" in preview.columns:
+        patient_ids = preview["Patient"].astype(str)
+        test_preview = preview.loc[patient_ids.isin(TEST_PATIENTS)]
+        if not test_preview.empty:
+            preview = test_preview
+
+    per_class_limit = max(1, MAX_SAMPLE_OPTIONS // 2)
+    normal = preview.loc[preview["Results"] == 0].head(per_class_limit)
+    abnormal = preview.loc[preview["Results"] == 1].head(MAX_SAMPLE_OPTIONS - len(normal))
+    balanced_preview = pd.concat([normal, abnormal]).sort_index()
+
+    if len(balanced_preview) < MAX_SAMPLE_OPTIONS:
+        remaining = preview.drop(index=balanced_preview.index).head(MAX_SAMPLE_OPTIONS - len(balanced_preview))
+        balanced_preview = pd.concat([balanced_preview, remaining]).sort_index()
+
+    return balanced_preview
 
 
 def get_dataset_row(row_index: int) -> pd.DataFrame:
@@ -131,6 +158,14 @@ def build_signal_payload(values: np.ndarray, limit: int = 900) -> list[float]:
     return values[indices].round(6).tolist()
 
 
+def min_max_scale_windows(windows: np.ndarray) -> np.ndarray:
+    row_min = windows.min(axis=1, keepdims=True)
+    row_max = windows.max(axis=1, keepdims=True)
+    row_range = row_max - row_min
+    safe_range = np.where(row_range == 0, 1.0, row_range)
+    return (windows - row_min) / safe_range
+
+
 def display_value(value):
     if pd.isna(value):
         return "לא ידוע"
@@ -151,6 +186,7 @@ def predict_rows(df: pd.DataFrame) -> dict:
         raise ValueError("No numeric ECG voltage columns were found in the input.")
 
     x = df[feature_columns].to_numpy(dtype=np.float32)
+    x = min_max_scale_windows(x)
     x = np.expand_dims(x, axis=-1)
 
     probabilities = model.predict(x, verbose=0).ravel()

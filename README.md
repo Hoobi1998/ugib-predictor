@@ -29,3 +29,9 @@ Render settings:
 - Python runtime: see `runtime.txt`
 
 The full `ECG_window_df.csv` is intentionally ignored because it is too large for GitHub. The app includes `ECG_window_sample.csv` for public demo samples, and CSV upload still works for compatible ECG windows.
+
+The model normalizes each ECG window with per-window min-max scaling before prediction:
+
+```text
+(x - window_min) / (window_max - window_min)
+```
