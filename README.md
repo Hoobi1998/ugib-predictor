@@ -33,7 +33,7 @@ GitHub stores the code. To make the Flask app available from any computer, deplo
 Render settings:
 
 - Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn app:app`
+- Start command: `gunicorn app:app --workers 1 --timeout 180`
 - Python runtime: `3.11.9` from `runtime.txt` / `render.yaml`
 
 Recommended flow:

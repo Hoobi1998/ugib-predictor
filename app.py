@@ -3,6 +3,7 @@
 
 import json
 import os
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -29,6 +30,8 @@ MAX_SAMPLE_OPTIONS = 100
 
 
 app = Flask(__name__)
+_model_warmup_started = False
+_model_warmup_lock = threading.Lock()
 
 
 def find_dataset_path() -> Optional[Path]:
@@ -52,6 +55,27 @@ def get_model():
     from tensorflow.keras.models import load_model
 
     return load_model(MODEL_PATH)
+
+
+def warm_model_async() -> None:
+    global _model_warmup_started
+
+    if _model_warmup_started or not MODEL_PATH.exists():
+        return
+
+    with _model_warmup_lock:
+        if _model_warmup_started:
+            return
+        _model_warmup_started = True
+
+    def warmup() -> None:
+        try:
+            get_model()
+            app.logger.info("ECG model loaded successfully.")
+        except Exception:
+            app.logger.exception("ECG model warm-up failed.")
+
+    threading.Thread(target=warmup, daemon=True).start()
 
 
 @lru_cache(maxsize=1)
@@ -246,6 +270,7 @@ def status_payload() -> dict:
 
 @app.route("/", methods=["GET"])
 def index():
+    warm_model_async()
     sample_preview = get_sample_preview()
     return render_template(
         "index.html",
@@ -281,6 +306,7 @@ def predict():
             input_df = normalize_uploaded_dataframe(pd.read_csv(upload))
             result = predict_rows(input_df)
     except Exception as exc:
+        app.logger.exception("ECG prediction failed.")
         error = str(exc)
 
     return render_template(
