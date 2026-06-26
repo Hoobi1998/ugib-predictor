@@ -3,15 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ECG 1D-CNN</title>
+    <title>ECG Classifier | תקין או לא תקין</title>
+    <meta name="description" content="דף נחיתה לסיווג אות ECG כתקין או לא תקין באמצעות מודל 1D-CNN.">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
     <main class="shell">
-      <section class="topbar" aria-label="סטטוס מערכת">
-        <div>
-          <h1>ECG 1D-CNN</h1>
-          <p>סיווג בינארי של חלון אק״ג</p>
+      <header class="topbar" aria-label="ניווט וסטטוס מערכת">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">ECG</span>
+          <div>
+            <strong>ECG 1D-CNN</strong>
+            <span>Normal / Abnormal Classifier</span>
+          </div>
         </div>
         <div class="status-grid">
           <div class="status-pill {{ 'ready' if status.model_ready else 'missing' }}">
@@ -27,18 +31,28 @@
             <strong>{{ status.feature_count }}</strong>
           </div>
         </div>
-      </section>
+      </header>
 
-      <section class="workspace">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">סיווג ECG לפי מודל 1D-CNN</span>
+          <h1>הכנס אות ECG וקבל סיווג: תקין או לא תקין</h1>
+          <p>
+            העלה קובץ CSV של חלון ECG או בחר דגימת דמו מתוך הדאטה. המודל יחזיר תוצאה ברורה,
+            הסתברות לאק״ג לא תקין, ורמת ביטחון בהחלטה.
+          </p>
+        </div>
+
         <form class="panel input-panel" method="post" action="{{ url_for('predict') }}" enctype="multipart/form-data">
           <div class="panel-head">
-            <h2>קלט</h2>
+            <h2>קלט לסיווג</h2>
+            <p>בחר מקור אות אחד להפעלה.</p>
           </div>
 
           <div class="control-group">
             <label>
               <input type="radio" name="source" value="sample" {{ 'checked' if selected_source == 'sample' else '' }}>
-              דגימה מתוך הדאטה
+              דגימת דמו מתוך הדאטה
             </label>
             <select name="sample_index" {{ 'disabled' if not samples else '' }}>
               {% for sample in samples %}
@@ -50,17 +64,21 @@
           <div class="control-group">
             <label>
               <input type="radio" name="source" value="upload" {{ 'checked' if selected_source == 'upload' else '' }}>
-              קובץ CSV
+              העלאת קובץ CSV
             </label>
             <input type="file" name="ecg_file" accept=".csv,text/csv">
+            <small>אפשר להעלות שורה אחת עם עמודות דגימה, או עמודה אחת עם ערכי אות ECG.</small>
           </div>
 
           <button type="submit" class="primary-button" data-loading-text="מסווג...">סווג אק״ג</button>
         </form>
+      </section>
 
+      <section class="workspace">
         <section class="panel output-panel" aria-label="פלט">
           <div class="panel-head">
-            <h2>פלט</h2>
+            <h2>תוצאת הסיווג</h2>
+            <p>הפלט מתעדכן אחרי שליחת הקלט למודל.</p>
           </div>
 
           {% if error %}
@@ -68,15 +86,35 @@
           {% elif result %}
             {% set first = result.rows[0] %}
             <div class="result-card {{ first.class_name }}">
-              <span>סיווג</span>
+              <span>החלטת המודל</span>
               <strong>{{ first.label }}</strong>
               <div class="meter" aria-label="הסתברות לאקג לא תקין">
                 <div style="width: {{ first.percent }}%"></div>
               </div>
               <p>הסתברות לא תקין: {{ first.percent }}%</p>
+              <p>רמת ביטחון בסיווג: {{ first.confidence }}%</p>
               {% if result.true_label %}
                 <p>תווית מקורית: {{ result.true_label }}</p>
               {% endif %}
+            </div>
+
+            <div class="metrics">
+              <div>
+                <span>סיווג</span>
+                <strong>{{ first.label }}</strong>
+              </div>
+              <div>
+                <span>ביטחון</span>
+                <strong>{{ first.confidence }}%</strong>
+              </div>
+              <div>
+                <span>הסתברות לא תקין</span>
+                <strong>{{ first.percent }}%</strong>
+              </div>
+              <div>
+                <span>מספר דגימות באות</span>
+                <strong>{{ result.feature_count }}</strong>
+              </div>
             </div>
 
             {% if result.rows|length > 1 %}
@@ -87,6 +125,7 @@
                       <th>שורה</th>
                       <th>סיווג</th>
                       <th>הסתברות לא תקין</th>
+                      <th>ביטחון</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -95,6 +134,7 @@
                         <td>{{ row.row }}</td>
                         <td>{{ row.label }}</td>
                         <td>{{ row.percent }}%</td>
+                        <td>{{ row.confidence }}%</td>
                       </tr>
                     {% endfor %}
                   </tbody>
@@ -102,6 +142,7 @@
               </div>
             {% endif %}
 
+            <h3>תצוגת אות ECG</h3>
             <canvas id="signalChart" data-signal='{{ result.signal | tojson }}'></canvas>
           {% else %}
             <div class="empty-state">
@@ -110,6 +151,28 @@
             </div>
           {% endif %}
         </section>
+
+        <aside class="panel info-panel">
+          <h2>איך זה עובד</h2>
+          <div class="steps">
+            <div>
+              <span>1</span>
+              <p>הקלט נטען מתוך CSV או מתוך דגימת דמו.</p>
+            </div>
+            <div>
+              <span>2</span>
+              <p>הערכים עוברים min-max scaling כמו באימון.</p>
+            </div>
+            <div>
+              <span>3</span>
+              <p>מודל 1D-CNN מחזיר הסתברות לאק״ג לא תקין.</p>
+            </div>
+            <div>
+              <span>4</span>
+              <p>סף 0.5 ממיר את ההסתברות לתקין או לא תקין.</p>
+            </div>
+          </div>
+        </aside>
       </section>
     </main>
 

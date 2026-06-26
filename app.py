@@ -200,6 +200,7 @@ def predict_rows(df: pd.DataFrame) -> dict:
                 "row": row_index + 1,
                 "probability": float(probability),
                 "percent": round(float(probability) * 100, 2),
+                "confidence": round((float(probability) if prediction == 1 else 1.0 - float(probability)) * 100, 2),
                 "prediction": prediction,
                 "label": "אק״ג לא תקין" if prediction == 1 else "אק״ג תקין",
                 "class_name": "abnormal" if prediction == 1 else "normal",
@@ -295,4 +296,4 @@ def predict():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
