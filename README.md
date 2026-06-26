@@ -1,2 +1,31 @@
 # 1D-CNN-for-ECG-Classification
 Using 1D CNN (convolutional neural network) deep learning technique to classify ECG (electrocardiography) signals as normal or abnormal. Trained with MIT-BIH Arrhythmia Database: https://www.physionet.org/physiobank/database/mitdb/  
+
+## Web app
+
+Run locally:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+## Public deployment
+
+GitHub stores the code. To make the Flask app available from any computer, deploy the repository to a web host such as Render.
+
+Render settings:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn app:app`
+- Python runtime: see `runtime.txt`
+
+The full `ECG_window_df.csv` is intentionally ignored because it is too large for GitHub. The app includes `ECG_window_sample.csv` for public demo samples, and CSV upload still works for compatible ECG windows.

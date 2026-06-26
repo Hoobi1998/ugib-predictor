@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ECG 1D-CNN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="סטטוס מערכת">
+        <div>
+          <h1>ECG 1D-CNN</h1>
+          <p>סיווג בינארי של חלון אק״ג</p>
+        </div>
+        <div class="status-grid">
+          <div class="status-pill {{ 'ready' if status.model_ready else 'missing' }}">
+            <span>מודל</span>
+            <strong>{{ 'זמין' if status.model_ready else 'חסר' }}</strong>
+          </div>
+          <div class="status-pill {{ 'ready' if status.dataset_ready else 'missing' }}">
+            <span>דאטה</span>
+            <strong>{{ 'זמין' if status.dataset_ready else 'חסר' }}</strong>
+          </div>
+          <div class="status-pill neutral">
+            <span>דגימות</span>
+            <strong>{{ status.feature_count }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form class="panel input-panel" method="post" action="{{ url_for('predict') }}" enctype="multipart/form-data">
+          <div class="panel-head">
+            <h2>קלט</h2>
+          </div>
+
+          <div class="control-group">
+            <label>
+              <input type="radio" name="source" value="sample" {{ 'checked' if selected_source == 'sample' else '' }}>
+              דגימה מתוך הדאטה
+            </label>
+            <select name="sample_index" {{ 'disabled' if not samples else '' }}>
+              {% for sample in samples %}
+                <option value="{{ sample['index'] }}" {{ 'selected' if selected_sample_index|string == sample['index']|string else '' }}>{{ sample['text'] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label>
+              <input type="radio" name="source" value="upload" {{ 'checked' if selected_source == 'upload' else '' }}>
+              קובץ CSV
+            </label>
+            <input type="file" name="ecg_file" accept=".csv,text/csv">
+          </div>
+
+          <button type="submit" class="primary-button" data-loading-text="מסווג...">סווג אק״ג</button>
+        </form>
+
+        <section class="panel output-panel" aria-label="פלט">
+          <div class="panel-head">
+            <h2>פלט</h2>
+          </div>
+
+          {% if error %}
+            <div class="notice error">{{ error }}</div>
+          {% elif result %}
+            {% set first = result.rows[0] %}
+            <div class="result-card {{ first.class_name }}">
+              <span>סיווג</span>
+              <strong>{{ first.label }}</strong>
+              <div class="meter" aria-label="הסתברות לאקג לא תקין">
+                <div style="width: {{ first.percent }}%"></div>
+              </div>
+              <p>הסתברות לא תקין: {{ first.percent }}%</p>
+              {% if result.true_label %}
+                <p>תווית מקורית: {{ result.true_label }}</p>
+              {% endif %}
+            </div>
+
+            {% if result.rows|length > 1 %}
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>שורה</th>
+                      <th>סיווג</th>
+                      <th>הסתברות לא תקין</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in result.rows %}
+                      <tr>
+                        <td>{{ row.row }}</td>
+                        <td>{{ row.label }}</td>
+                        <td>{{ row.percent }}%</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+
+            <canvas id="signalChart" data-signal='{{ result.signal | tojson }}'></canvas>
+          {% else %}
+            <div class="empty-state">
+              <strong>ממתין לקלט</strong>
+              <p>בחר דגימה או העלה CSV כדי לקבל סיווג.</p>
+            </div>
+          {% endif %}
+        </section>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+env/
+
+ECG_window_df.csv
+Desktop/
+
+external_models/
+output/
+output_*/
+
+.pytest_cache/
+.mypy_cache/
