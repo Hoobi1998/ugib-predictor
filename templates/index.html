@@ -3,147 +3,139 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ECG Classifier | תקין או לא תקין</title>
+    <title>SmartECG Assist | ECG Heartbeat Classification</title>
     <meta name="description" content="דף נחיתה לסיווג אות ECG כתקין או לא תקין באמצעות מודל 1D-CNN.">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
     <main class="shell">
-      <header class="topbar" aria-label="ניווט וסטטוס מערכת">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">ECG</span>
-          <div>
-            <strong>ECG 1D-CNN</strong>
-            <span>Normal / Abnormal Classifier</span>
+      <header class="topbar" aria-label="סטטוס מערכת ומיתוג">
+        <div class="stats">
+          <div class="stat-card">
+            <span class="stat-label">דגימות</span>
+            <strong class="stat-value">{{ status.feature_count }}</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">דאטה</span>
+            <strong class="stat-value {{ 'ready' if status.dataset_ready else 'missing' }}">{{ 'זמין' if status.dataset_ready else 'חסר' }}</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">מודל</span>
+            <strong class="stat-value {{ 'ready' if status.model_ready else 'missing' }}">{{ 'זמין' if status.model_ready else 'חסר' }}</strong>
           </div>
         </div>
-        <div class="status-grid">
-          <div class="status-pill {{ 'ready' if status.model_ready else 'missing' }}">
-            <span>מודל</span>
-            <strong>{{ 'זמין' if status.model_ready else 'חסר' }}</strong>
-          </div>
-          <div class="status-pill {{ 'ready' if status.dataset_ready else 'missing' }}">
-            <span>דאטה</span>
-            <strong>{{ 'זמין' if status.dataset_ready else 'חסר' }}</strong>
-          </div>
-          <div class="status-pill neutral">
-            <span>דגימות</span>
-            <strong>{{ status.feature_count }}</strong>
+
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">ECG</div>
+          <div>
+            <strong>SmartECG Assist</strong>
+            <span>ECG Heartbeat Classification</span>
           </div>
         </div>
       </header>
 
-      <section class="hero">
-        <div class="hero-copy">
-          <span class="eyebrow">סיווג ECG לפי מודל 1D-CNN</span>
-          <h1>הכנס אות ECG וקבל סיווג: תקין או לא תקין</h1>
-          <p>
-            העלה קובץ CSV של חלון ECG או בחר דגימת דמו מתוך הדאטה. המודל יחזיר תוצאה ברורה,
-            הסתברות לאק״ג לא תקין, ורמת ביטחון בהחלטה.
-          </p>
-        </div>
+      <section class="hero-grid">
+        <section class="panel uploader-panel">
+          <div class="pill">סיווג ECG בינארי — תקין / לא תקין</div>
 
-        <form class="panel input-panel" method="post" action="{{ url_for('predict') }}" enctype="multipart/form-data">
-          <div class="panel-head">
-            <h2>קלט לסיווג</h2>
-            <p>בחר מקור אות אחד להפעלה.</p>
-          </div>
+          <form method="post" action="{{ url_for('predict') }}" enctype="multipart/form-data">
+            <div class="section-title">העלאת נתונים</div>
 
-          <div class="control-group">
-            <label>
-              <input type="radio" name="source" value="sample" {{ 'checked' if selected_source == 'sample' else '' }}>
-              דגימת דמו מתוך הדאטה
-            </label>
-            <select name="sample_index" {{ 'disabled' if not samples else '' }}>
-              {% for sample in samples %}
-                <option value="{{ sample['index'] }}" {{ 'selected' if selected_sample_index|string == sample['index']|string else '' }}>{{ sample['text'] }}</option>
-              {% endfor %}
-            </select>
-          </div>
+            <div class="upload-box">
+              <div class="upload-icon" aria-hidden="true">⇪</div>
+              <div class="upload-title">גררו קובץ ECG לכאן</div>
+              <div class="upload-copy">CSV / TXT — עמודה מספרית אחת או יותר</div>
 
-          <div class="control-group">
-            <label>
-              <input type="radio" name="source" value="upload" {{ 'checked' if selected_source == 'upload' else '' }}>
-              העלאת קובץ CSV
-            </label>
-            <input type="file" name="ecg_file" accept=".csv,text/csv">
-            <small>אפשר להעלות שורה אחת עם עמודות דגימה, או עמודה אחת עם ערכי אות ECG.</small>
-          </div>
+              <div class="control-group">
+                <label>
+                  <input type="radio" name="source" value="sample" {{ 'checked' if selected_source == 'sample' else '' }}>
+                  דגימת דמו מתוך הדאטה
+                </label>
+                <select name="sample_index" {{ 'disabled' if not samples else '' }}>
+                  {% for sample in samples %}
+                    <option value="{{ sample['index'] }}" {{ 'selected' if selected_sample_index|string == sample['index']|string else '' }}>{{ sample['text'] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
 
-          <button type="submit" class="primary-button" data-loading-text="מסווג...">סווג אק״ג</button>
-        </form>
-      </section>
+              <div class="control-group">
+                <label>
+                  <input type="radio" name="source" value="upload" {{ 'checked' if selected_source == 'upload' else '' }}>
+                  העלאת קובץ CSV
+                </label>
+                <input type="file" name="ecg_file" accept=".csv,text/csv">
+                <small>אפשר להעלות שורה אחת עם עמודות דגימה, או עמודה אחת עם ערכי אות ECG.</small>
+              </div>
 
-      <section class="workspace">
-        <section class="panel output-panel" aria-label="פלט">
-          <div class="panel-head">
-            <h2>תוצאת הסיווג</h2>
-            <p>הפלט מתעדכן אחרי שליחת הקלט למודל.</p>
-          </div>
+              <button type="submit" class="primary-button" data-loading-text="מסווג...">סווג ECG</button>
+            </div>
+          </form>
 
           {% if error %}
             <div class="notice error">{{ error }}</div>
           {% elif result %}
             {% set first = result.rows[0] %}
-            <div class="result-card {{ first.class_name }}">
-              <span>החלטת המודל</span>
-              <strong>{{ first.label }}</strong>
-              <div class="meter" aria-label="הסתברות לאקג לא תקין">
-                <div style="width: {{ first.percent }}%"></div>
-              </div>
-              <p>הסתברות לא תקין: {{ first.percent }}%</p>
-              <p>רמת ביטחון בסיווג: {{ first.confidence }}%</p>
-              {% if result.true_label %}
-                <p>תווית מקורית: {{ result.true_label }}</p>
-              {% endif %}
-            </div>
-
-            <div class="metrics">
-              <div>
-                <span>סיווג</span>
+            <section class="result-stage" aria-label="פלט סיווג">
+              <div class="result-card {{ first.class_name }}">
+                <span>החלטת המודל</span>
                 <strong>{{ first.label }}</strong>
+                <div class="meter" aria-label="הסתברות לאקג לא תקין">
+                  <div style="width: {{ first.percent }}%"></div>
+                </div>
+                <p>הסתברות לא תקין: {{ first.percent }}%</p>
+                <p>רמת ביטחון בסיווג: {{ first.confidence }}%</p>
+                {% if result.true_label %}
+                  <p>תווית מקורית: {{ result.true_label }}</p>
+                {% endif %}
               </div>
-              <div>
-                <span>ביטחון</span>
-                <strong>{{ first.confidence }}%</strong>
-              </div>
-              <div>
-                <span>הסתברות לא תקין</span>
-                <strong>{{ first.percent }}%</strong>
-              </div>
-              <div>
-                <span>מספר דגימות באות</span>
-                <strong>{{ result.feature_count }}</strong>
-              </div>
-            </div>
 
-            {% if result.rows|length > 1 %}
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>שורה</th>
-                      <th>סיווג</th>
-                      <th>הסתברות לא תקין</th>
-                      <th>ביטחון</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in result.rows %}
+              <div class="metrics">
+                <div>
+                  <span>סיווג</span>
+                  <strong>{{ first.label }}</strong>
+                </div>
+                <div>
+                  <span>ביטחון</span>
+                  <strong>{{ first.confidence }}%</strong>
+                </div>
+                <div>
+                  <span>הסתברות לא תקין</span>
+                  <strong>{{ first.percent }}%</strong>
+                </div>
+                <div>
+                  <span>מספר דגימות באות</span>
+                  <strong>{{ result.feature_count }}</strong>
+                </div>
+              </div>
+
+              {% if result.rows|length > 1 %}
+                <div class="table-wrap">
+                  <table>
+                    <thead>
                       <tr>
-                        <td>{{ row.row }}</td>
-                        <td>{{ row.label }}</td>
-                        <td>{{ row.percent }}%</td>
-                        <td>{{ row.confidence }}%</td>
+                        <th>שורה</th>
+                        <th>סיווג</th>
+                        <th>הסתברות לא תקין</th>
+                        <th>ביטחון</th>
                       </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% endif %}
+                    </thead>
+                    <tbody>
+                      {% for row in result.rows %}
+                        <tr>
+                          <td>{{ row.row }}</td>
+                          <td>{{ row.label }}</td>
+                          <td>{{ row.percent }}%</td>
+                          <td>{{ row.confidence }}%</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
 
-            <h3>תצוגת אות ECG</h3>
-            <canvas id="signalChart" data-signal='{{ result.signal | tojson }}'></canvas>
+              <h3>תצוגת אות ECG</h3>
+              <canvas id="signalChart" data-signal='{{ result.signal | tojson }}'></canvas>
+            </section>
           {% else %}
             <div class="empty-state">
               <strong>ממתין לקלט</strong>
@@ -152,27 +144,19 @@
           {% endif %}
         </section>
 
-        <aside class="panel info-panel">
-          <h2>איך זה עובד</h2>
-          <div class="steps">
-            <div>
-              <span>1</span>
-              <p>הקלט נטען מתוך CSV או מתוך דגימת דמו.</p>
-            </div>
-            <div>
-              <span>2</span>
-              <p>הערכים עוברים min-max scaling כמו באימון.</p>
-            </div>
-            <div>
-              <span>3</span>
-              <p>מודל 1D-CNN מחזיר הסתברות לאק״ג לא תקין.</p>
-            </div>
-            <div>
-              <span>4</span>
-              <p>סף 0.5 ממיר את ההסתברות לתקין או לא תקין.</p>
-            </div>
-          </div>
-        </aside>
+        <section class="panel hero-panel">
+          <div class="hero-badge">סיווג ECG לפי מודל 1D-CNN</div>
+          <div class="hero-heart" aria-hidden="true"></div>
+          <div class="hero-line" aria-hidden="true"></div>
+          <h1>הכנסו את ECG וקבלו סיווג: תקין או לא תקין</h1>
+          <p class="hero-text">
+            העלה קובץ CSV של חלון ECG או בחר דגימת דמו מתוך הדאטה.
+            המודל יחזיר תוצאה ברורה, הסתברות לאק״ג לא תקין, ורמת ביטחון בהחלטה.
+          </p>
+          <p class="hero-text secondary">
+            ממשק נוח, קריא, וידידותי להצגה ב-Render ובאופן מקומי.
+          </p>
+        </section>
       </section>
     </main>
 
