@@ -311,6 +311,7 @@ small {
   transform: rotate(-45deg);
   border-radius: 10px;
   box-shadow: 0 18px 32px rgba(176, 72, 67, 0.22);
+  animation: heartbeat 1.4s ease-in-out infinite;
 }
 
 .hero-heart::before,
@@ -331,6 +332,21 @@ small {
 .hero-heart::after {
   top: 0;
   left: 29px;
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: rotate(-45deg) scale(1);
+  }
+  25% {
+    transform: rotate(-45deg) scale(1.08);
+  }
+  50% {
+    transform: rotate(-45deg) scale(0.94);
+  }
+  75% {
+    transform: rotate(-45deg) scale(1.04);
+  }
 }
 
 .hero-line {
@@ -354,20 +370,21 @@ small {
       transparent 78%,
       transparent 100%);
   position: relative;
+  animation: ecgPulse 1.4s ease-in-out infinite;
 }
 
-.hero-line::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 6px rgba(176, 72, 67, 0.08);
+@keyframes ecgPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.72;
+    transform: translateY(-2px);
+  }
 }
+
+
 
 .hero-panel h1 {
   font-size: clamp(2rem, 4vw, 4.6rem);
